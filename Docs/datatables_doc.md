@@ -1,186 +1,184 @@
 # Datatables 2.x
 
----
+Documentacion actualizada segun el comportamiento actual de [intranet/php/wisetech/datatables.php]
 
-## Se agrega
-- `Intranet/php/wisetech/datatables.php`
-- `Sql/datatables.sql`
-  - **Creación de** `_seguridad.datatables`
-- **Carpeta** `datatables2`
-  - Contienen todos los `*.js` y `*.css` de datatables.js 2.x
 
----
+# 1. Operaciones INTERNAS de la clase
 
-## Archivos modificados 
-- `Intranet/php/wisetech/crud.php`
-- `Intranet/pages/main.html/php`
-- `Intranet/js/common.js`
-  - **Function** `Activar_tabla`
+  # 1.2 guardar_estado_datatables
+    - Guarda en `solomoda_seguridad.datatables` por usuario y tabla.
+    - Es para uso 'interno' en combinacion con activar_tabla de commnon.js. No deberia usarse fuera de esto 
 
----
+  # 1.3 cargar_estado_datatables
+    - Carga todos los estados de tablas del usuario actual.
+    - Es para uso 'interno' en combinacion con activar_tabla de commnon.js. No deberia usarse fuera de esto 
 
-## Descripción de uso básico 
+# 2.  Metodo addTable 
 
-Ahora al crear una tabla por ejemplo en **cargar_opcion** de cualquier mantenimiento, se pueden agregar una serie de parámetros opcionales que determinan que características de datatables2 se habilitaran.  
+  # 2.1 Parametros 
+            ```php
+            public function addTable(
+                $result, 
+                $PARAMETROS = [],         
+                $style = "",
+                $special_columns = [],
+                $aligments = [],
+                $hidden_columns = [],
+                $idtabla = "tabla_datos"
+            )
+            ```
+          - `$result`: resultado de consulta MySQL.
+          - `$PARAMETROS`: configuracion general de DataTables 2.
+          - `$style`: estilo inline para `<table>`.
+          - `$special_columns`: Para agregar columnas que realicen alguna accion/opercion particular 
+          - `$aligments`: alineacion por columna (`left`, `center`, `right`).
+          - `$hidden_columns`: arreglo de nombres de columna a ocultar.
+          - `$idtabla`: id final de la tabla. 
 
-A continuación, se detallan cada uno de ellos cuando están habilitados (**true**) y después daremos un ejemplo de su implementación.
+  # 2.2 Configuracion aceptada en el array $PARAMETROS
+          - PARAMETROS es un arreglo para configurar datatables 2, 
+          - Si un valor es falso , entonces se puede omitir (ver ejemplo de uso mas adelante)
+          - Puede tener cualquier de los siguientes valores
+              - `columncontrol` (bool)
+              - `responsive` (bool)
+              - `colreorder` (bool)
+              - `select` (bool)
+              - `buttons` (bool)
+              - `paging` (bool)
+              - `ordering` (bool)
+              - `order` (bool)
+              - `reset` (bool)
+              - `rowgroup` (false o nombre exacto de columna)
+              - `acciones` (bool)
+              - `titulotabla` (string)
+              - `filename` (string)
 
----
+          - Con los valores que se incluyan en el array PARAMETROS, se crean valores de tipo data- que se incluyen en el 
+            encabezado de la tabla con los valores indicados en el array. 
+              - `data-conf-columncontrol`
+              - `data-conf-rowgroup`
+              - `data-conf-titulotabla`
+              - `data-conf-filename`
+              - `data-conf-responsive`
+              - `data-conf-colreorder`
+              - `data-conf-select`
+              - `data-conf-buttons`
+              - `data-conf-paging`
+              - `data-conf-ordering`
+              - `data-conf-noorder`
+              - `data-conf-reset`
 
-# EXPLICACION TEORICA 
+  # 2.4 Comportamiento adicional
+            - Si `acciones = true`, agrega columna `Acciones` con boton `Editar`.
+            - Si una columna esta en `$hidden_columns`, no se pinta en `<thead>` ni en `<tbody>`.
+            - Si existe plantilla en `$special_columns[columna]`, reemplaza placeholders con valores de la fila.
+            - Evita IDs de tabla duplicados dentro de la misma instancia (`$IDS`).
 
----
+  # 2.5 Ejemplo de uso real
 
-## **$columnControl**
-**Habilita el menu para poder filtar/ordenar.**  
+        ```php
+        -- NOTESE QUE $CONFIGURACION no incluye todos los posibles valores 
+          por lo tanto lo que no se colocan se asumen como false 
 
-Dicho menu permite filtrar los valores de la columna (y por lo tanto de toda la tabla ) por criterios como:  
-- MAYOR QUE  
-- MENOR  
-- IGUAL  
-- CONTIENE  
+        $CONFIGURACION = [
+            'columncontrol' => true, 
+            'responsive'    => true,
+            'select'        => true,
+            'buttons'       => true,
+            'ordering'      => true,
+            'order'         => true,
+            'reset'         => true,
+            'acciones'      => true,
+            'titulotabla'   => 'Listado de marcas',
+            'filename'      => 'Marcas'
+        ];
 
-Este menu aparecera a la izquierda/derecha de cada título de columna (ver imagen)
+        - Aca agregaremos una columna adicional que mostrara el estado del registro
 
----
+        $SPECIAL_COLUMNS = [
+            'estado' => '<span class="badge">[estado]</span>'
+        ];
 
-## **$responsive**
-Permite que la tabla se adapte automáticamente a pantallas móviles.
+        -- El contenido de las  columnas de 'codigo' y 'estado' se mostrara centrado dentro de sus td
+        $ALIGMENTS = [
+            'codigo' => 'center',
+            'estado' => 'center'
+        ];
+        -- Se oculta la columna de id
+        $HIDDEN_COLUMNS = ['id_marca'];
 
----
 
-## **$colReorder**
-Permite al usuario arrastrar y soltar las columnas para cambiar su orden.
+        -- Instanciamos la clase y llamamos al metodo con todos los parametros configurados 
 
----
+        $_DATATABLES = new datatables();
+        $tabla =  $DATATABLES->addTable(
+            $result,
+            $CONFIGURACION,
+            '',
+            $SPECIAL_COLUMNS,
+            $ALIGMENTS,
+            $HIDDEN_COLUMNS,
+            'tabla_marca'
+        );
+        ```
 
-## **$select**
-Activa la capacidad de seleccionar filas (individual o múltiple) al hacer clic.  
-
-Además:
-- Añade un botón **"Deseleccionar"**
-- Configura los botones de exportación para que, si hay filas marcadas, solo se exporte lo seleccionado.
-
----
-
-## **$buttons**
-Muestra la barra de herramientas con botones de exportación:
-- Excel  
-- PDF  
-- etc.
-
----
-
-## **$paging**
-- Si es **false**, la paginacion sera de 10 filas por pagina y no sera posible cambiar.  
-- Si es **true**, se permite que el usuario selecciona entre:
-  - 10  
-  - 25  
-  - 50  
-  - TODOS  
-
----
-
-## **$ordering**
-Habilita la capacidad global de ordenar los datos al tocar los encabezados.
-
----
-
-## **$rowGroup**
-Esta función organiza la información de la tabla de forma jerárquica, permitiendo visualizar los datos clasificados por una característica común (como Marca, Categoría o Proveedor) en lugar de ver una lista plana.  
-
-Por ejemplo en la siguiente imagen se ordeno por tipo de zapato (bota niña, botin, etc.)
-
-Sin embargo, su implementación es un poco más detallada:
-
-- Por principio si tiene el valor de **false**, entonces simplemente no estará activa dicha agrupación.  
-- El segundo caso es que puede tener como valor el **NOMBRE EXACTO** (es realmente importante que sea el nombre exacto de la columna) de una de las columnas de la tabla, y en este caso la agrupación se hará por dicha columna.  
-
-Además:
-- A la par de los botones de exportación se agregará un botón que permitirá eliminar la agrupación.
-
----
-
-## **$tituloTabla**
-Esta función permite asignar un título descriptivo a la tabla que se va a imprimir o exportar.  
-
-El valor del título se define a partir del parámetro que se le pase a la función, lo cual facilita identificar el contenido de la tabla en el documento final.  
-
-- En caso de que se envíe el valor **false**, el título del PDF se establecerá automáticamente como **"Listado"** por defecto.
-
----
-
-## **$fileName**
-Esta función permite definir el nombre del archivo que se generará al momento de guardar o exportar la información.  
-
-Por ejemplo:
-- Si el valor proporcionado es **"Modelos"**, el archivo se guardará como:  
-  **"Listado_de_Modelos_JBR_Innovaciones_y_Servicios"**
-
-- En caso de que se envíe el valor **false**, el archivo se guardará con el nombre por defecto **"Listado"**.
-
----
-
-# EJEMPLO DE IMPLEMENTACION 
-
----
-
-## 1º. En el HTML 
-
-Se debe agregar un nuevo input:
-
-```html
-<input type="hidden" name="datatableid" id="datatableid" value="tabla_marca">
-```
-
-El name/id debe ser "datatableid"  y el value será el nombre con que se guardara el estado de la tabla tanto en el local storage como en la tabla de mysql. 
-
-- **Detección del Input:** El script busca un elemento con el ID `datatableid`. Este input es el que contiene el "nombre deseado" para la tabla (por ejemplo: `tabla_ventas` o `tabla_usuarios`).
-- **Validación de Valor:** Si el input existe y tiene un texto válido (no está vacío), el script intenta usar ese valor como el nuevo ID de la tabla.
-- **Renombrado:**
-  - Si el script encuentra una tabla con el ID genérico (`tabla_datos`), le cambia el ID por el valor del input.
-  - Ejemplo: `<table id="tabla_datos">` 
-              se convierte automáticamente en 
-              `<table id="tabla_productos">`.
-- **Confirmación de Existencia:** Si no encuentra la tabla genérica, verifica si ya existe una tabla que use directamente el ID del input.
-- **Valor de Respaldo:** Si el input no existe, está vacío, o no se encuentra ninguna tabla coincidente, el script utiliza por defecto el nombre `tabla_datos`.
 
 ---
 
-## 2º. En PHP 
+# 3. Metodos de construccion de reportes
 
-En el script que genera la tabla y antes de crear el encabezado de la tabla se deben crear las variables de configuracion
+    Ademas de `addTable`, la clase incluye utilidades para armar HTML de reporte:
 
-```php
-       $columnControl = true;
-        $responsive    = true;
-        $colReorder    = true;
-        $select        = true;
-        $buttons       = true;
-        $paging        = false;
-        $ordering      = true;
-        $order         = true;
-        $rowGroup      = false;
-        $tituloTabla = ‘Listado de modelo: $modelo’
-        $fileName = ‘Modelos’
-```
+  - `addTitle($text)`: Agrega un titulo principal en formato `<h2>`, centrado.
+  - `addSubTitle($text)`: Agrega un subtitulo en formato `<h4>`.
+  - `addBreakLine($cantidad = 1)`: Inserta una o varias etiquetas `<br>` para separar bloques.
+  - `addParagraph($text)`: Agrega un parrafo en formato `<p>`.
+  - `addText($text)`: Agrega texto en linea en formato `<span>`.
+  - `addLogo($url)`: Inserta una imagen (generalmente logo) alineada a la izquierda.
+  - `addTableToReport(...)`: Agrega una tabla al reporte reutilizando internamente `addTable`.
+  - `getReport()`: Retorna todo el HTML acumulado del reporte.
+  - `reset()`: Limpia el contenido acumulado del reporte para empezar desde cero.
 
-Estos se agregarán como valores data-  al encabezado de la tabla, para que sean leídos por el script de js activar_tabla. 
+Estos metodos no dependen de `operacion`; se usan de forma directa al instanciar la clase en PHP.
 
-```php
-        $data_ = "";
-        $data_  = " data-conf-columncontrol='" . ($columnControl ? "true" : "false") . "' ";
-        $data_ .= " data-conf-rowgroup='Marca'";
-        $data_ .= " data-conf-titulotabla='$tituloTabla' ";
-        $data_ .= " data-conf-filename='$fileName' ";
-        $data_ .= " data-conf-responsive='"    . ($responsive    ? "true" : "false") . "' ";
-        $data_ .= " data-conf-colreorder='"    . ($colReorder    ? "true" : "false") . "' ";
-        $data_ .= " data-conf-select='"        . ($select        ? "true" : "false") . "' ";
-        $data_ .= " data-conf-buttons='"       . ($buttons       ? "true" : "false") . "' ";
-        $data_ .= " data-conf-paging='"        . ($paging        ? "true" : "false") . "' ";
-        $data_ .= " data-conf-ordering='"      . ($ordering      ? "true" : "false") . "' ";
-        $data_ .= " data-conf-noorder='"       . (!$order        ? "true" : "false") . "' ";
-        $data_ .= " data-conf-rowgroup='"       . (!$rowGroup        ? "true" : "false") . "' ";
+---
 
-$tabla_productos = "<table id='tabla_datos'   $data_   class='display nowrap table table-hover   table-bordered datatable' cellspacing='0' width='100%'>
-```
+# 4. Notas practicas
+
+- Si no envias `idtabla`, se usa `tabla_datos`.
+- Para evitar conflicto de IDs en la misma respuesta, usa un `idtabla` distinto por tabla.
+
+# 5 Ejemplo de uso 
+  ```php
+          $DATA        = [];
+        $result      = mysql::getresult("SELECT idmarca, '' boton1, nombre, '' boton2, estado  FROM marca ORDER BY idmarca DESC");
+        // $DATA['tabla_marca'] =  $this->construir_tabla_marca($result); FORMA ANTIGUA DE USAR DATATAVLES  
+        $CONFIG_TABLA = [];
+        // $CONFIG_TABLA['columncontrol'] = false;
+        $CONFIG_TABLA['responsive']    = true;
+        $CONFIG_TABLA['colreorder']    = true;
+        //$CONFIG_TABLA['select']        = false;
+        $CONFIG_TABLA['buttons']       = true;
+        $CONFIG_TABLA['paging']        = true;
+        $CONFIG_TABLA['ordering']      = true;
+        $CONFIG_TABLA['order']         = true;
+        // $CONFIG_TABLA['rowgroup']      = false;
+        $CONFIG_TABLA['reset']         = true;
+        $CONFIG_TABLA['acciones']      = true;
+        $CONFIG_TABLA['titulotabla']   = 'Marcas';
+        $CONFIG_TABLA['filename']      = 'Marcas';
+        // Ejemplo de configuracion heredadas desde reportes 
+        $style = "border-collapse:collapse;";  // Estilos CSS para la tabla
+        $aligments = ['nombre' => 'right', 'estado' => 'center'];
+        // $special_columns = [ 'Estado Actual' => '<span class="badge badge-[estado]">[estado]</span>'];
+        $special_columns['boton1'] = '<button class="btn btn-sm btn-primary waves-effect waves-light" type="button" onclick="alert(\'idmarca:[idmarca]\')"><span class="btn-label"><i class="far fa-edit"></i></span>Editar</button>';
+        $special_columns['boton2'] = '<button class="btn btn-sm btn-primary waves-effect waves-light" type="button" onclick="alert(\'nombre:[nombre]\')"><span class="btn-label"><i class="far fa-edit"></i></span>Editar</button>';
+        $hidden_columns_adicionales = ['idmarca','estado'];  // Columnas a ocultar (además de idmarca ya en CONFIG_TABLA)
+        // Ejemplo de uso de los metodos heredados desde reportes
+        $_DATATABLES = new datatables();
+        $_DATATABLES->addTitle('TITULO');
+        $_DATATABLES->addSubTitle('SUBTITULO');
+        $_DATATABLES->addBreakLine(1);
+        $_DATATABLES->addParagraph('PARRAFO DE EJEMPLO PARA DESCRIPCION DEL REPORTE O INSTRUCCIONES');
+        $_DATATABLES->addBreakLine(1);
+        $_DATATABLES->addTableToReport($result, $CONFIG_TABLA, $style, $special_columns, $aligments, $hidden_columns_adicionales, 'tabla_marca');
